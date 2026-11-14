@@ -1,34 +1,84 @@
-name: AI Changelog Generator
+# Reusable workflow: write the CHANGELOG entry for a release and open a PR
+# with it (instead of pushing to main, which fails on protected branches).
+#
+# Typical caller: on push of a v* tag. The entry covers commits since the
+# previous tag and is titled with the new tag.
+name: AI changelog (reusable)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      provider:
+        type: string
+        default: anthropic
+      model:
+        type: string
+        default: ""
+      base-url:
+        type: string
+        default: ""
+      language:
+        type: string
+        default: English
+      target-branch:
+        description: Branch the changelog PR goes into
+        type: string
+        default: main
+      runs-on:
+        type: string
+        default: ubuntu-latest
+      kit-ref:
+        type: string
+        default: main
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      AI_API_KEY:
+        required: false
 
 jobs:
   changelog:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version: '3.11'
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: pip install openai
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Generate AI changelog
+      - name: Install aikit
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python scripts/generate_changelog.py
+          KIT_REF: ${{ inputs.kit-ref }}
+        run: pip install --quiet "aikit[all] @ git+https://github.com/MassimoDanieli/ai-devops-starter-kit@${KIT_REF}"
 
-      - name: Commit CHANGELOG.md
+      - name: Generate entry
+        id: gen
+        env:
+          AI_PROVIDER: ${{ inputs.provider }}
+          AI_MODEL: ${{ inputs.model }}
+          AI_BASE_URL: ${{ inputs.base-url }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OUT_LANGUAGE: ${{ inputs.language }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "chore: update changelog [skip ci]" || echo "No changes to commit"
-          git push
+          aikit changelog --language "$OUT_LANGUAGE"
+          echo "label=$(git describe --tags --exact-match HEAD 2>/dev/null || git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Open PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: ${{ inputs.target-branch }}
+          branch: changelog/${{ steps.gen.outputs.label }}
+          add-paths: CHANGELOG.md
+          commit-message: "docs(changelog): ${{ steps.gen.outputs.label }}"
+          title: "Changelog for ${{ steps.gen.outputs.label }}"
+          body: "Generated with ai-devops-starter-kit. Edit freely before merging."

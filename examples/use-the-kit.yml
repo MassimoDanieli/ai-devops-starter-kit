@@ -1,0 +1,53 @@
+# Copy to .github/workflows/ai.yml in any repository.
+# Needs one secret: ANTHROPIC_API_KEY (or OPENAI_API_KEY with provider: openai).
+name: AI
+
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+
+jobs:
+  review:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: MassimoDanieli/ai-devops-starter-kit/.github/workflows/ai-review.yml@main
+    with:
+      language: Italian
+      fail-on: critical          # block merge only on critical findings
+      context-file: CLAUDE.md    # optional: house rules the reviewer should apply
+    secrets: inherit
+
+  tests:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: MassimoDanieli/ai-devops-starter-kit/.github/workflows/ai-testgen.yml@main
+    secrets: inherit
+
+  changelog:
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: MassimoDanieli/ai-devops-starter-kit/.github/workflows/ai-changelog.yml@main
+    secrets: inherit
+
+  # Same review against a model on your own hardware (e.g. "nero" running a
+  # llama.cpp / vLLM / Ollama server). Needs a self-hosted runner that can
+  # reach it; nothing leaves your network.
+  # review-local:
+  #   if: github.event_name == 'pull_request'
+  #   permissions:
+  #     contents: read
+  #     pull-requests: write
+  #   uses: MassimoDanieli/ai-devops-starter-kit/.github/workflows/ai-review.yml@main
+  #   with:
+  #     provider: local
+  #     model: bonsai-2-27b
+  #     base-url: http://nero.lan:8080/v1
+  #     runs-on: self-hosted
+  #   secrets: inherit

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aikit"
+version = "2.0.0"
+description = "Provider-agnostic AI helpers for CI/CD: PR review, test proposals, changelog, SonarQube triage"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Massimo Danieli" }]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.40"]
+all = ["anthropic>=0.40", "openai>=1.40"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+aikit = "aikit.__main__:main"
+
+[tool.setuptools]
+packages = ["aikit"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]  # formatter owns line length; long literals in tests are fine

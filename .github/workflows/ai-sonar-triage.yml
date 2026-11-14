@@ -1,0 +1,100 @@
+# Reusable workflow: triage BLOCKER/CRITICAL SonarQube issues in recently
+# changed files and propose fixes. Successor of ai-code-quality-notifier.
+#
+# Give it either a report file produced earlier in the job/run (report-path)
+# or SonarQube credentials (SONAR_HOST_URL var + SONAR_TOKEN secret).
+name: AI SonarQube triage (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      provider:
+        type: string
+        default: anthropic
+      model:
+        type: string
+        default: ""
+      base-url:
+        type: string
+        default: ""
+      language:
+        type: string
+        default: English
+      report-path:
+        description: SonarQube issues JSON in the repo (empty = query the server)
+        type: string
+        default: ""
+      sonar-host-url:
+        type: string
+        default: ""
+      sonar-project-key:
+        type: string
+        default: ""
+      days:
+        description: Only issues in files changed in the last N days
+        type: number
+        default: 7
+      fail-threshold:
+        description: Fail when at least this many severe issues remain (0 = never)
+        type: number
+        default: 0
+      runs-on:
+        type: string
+        default: ubuntu-latest
+      kit-ref:
+        type: string
+        default: main
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      AI_API_KEY:
+        required: false
+      SONAR_TOKEN:
+        required: false
+
+jobs:
+  triage:
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install aikit
+        env:
+          KIT_REF: ${{ inputs.kit-ref }}
+        run: pip install --quiet "aikit[all] @ git+https://github.com/MassimoDanieli/ai-devops-starter-kit@${KIT_REF}"
+
+      - name: Triage
+        env:
+          AI_PROVIDER: ${{ inputs.provider }}
+          AI_MODEL: ${{ inputs.model }}
+          AI_BASE_URL: ${{ inputs.base-url }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
+          SONAR_PROJECT_KEY: ${{ inputs.sonar-project-key }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_BRANCH: ${{ github.head_ref || github.ref_name }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OUT_LANGUAGE: ${{ inputs.language }}
+          REPORT_PATH: ${{ inputs.report-path }}
+          DAYS: ${{ inputs.days }}
+          FAIL_THRESHOLD: ${{ inputs.fail-threshold }}
+        run: |
+          args=(sonar --language "$OUT_LANGUAGE" --days "$DAYS" --fail-threshold "$FAIL_THRESHOLD" --out sonar-triage.md)
+          if [ -n "$REPORT_PATH" ]; then args+=(--report "$REPORT_PATH"); fi
+          if [ -n "$PR_NUMBER" ]; then args+=(--comment); fi
+          aikit "${args[@]}"
