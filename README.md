@@ -105,7 +105,7 @@ pytest -q        # nessuna chiamata di rete: i test usano un client finto
 ruff check . && ruff format --check .
 ```
 
-La CI fa girare i test su Python 3.10 e 3.13 e poi usa il kit per fare la review delle sue stesse PR.
+La CI fa girare i test su Python 3.10 e 3.13. Per far fare al kit la review delle sue stesse PR, copia `examples/use-the-kit.yml` in `.github/workflows/` (i workflow riutilizzabili vengono letti da `main`).
 
 ## Struttura
 
