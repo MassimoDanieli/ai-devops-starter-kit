@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+ai-review.*
+ai-tests/
+ai-tests.md
+sonar-triage.md

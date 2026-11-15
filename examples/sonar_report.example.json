@@ -1,0 +1,34 @@
+{
+  "issues": [
+    {
+      "key": "AXx12345",
+      "rule": "java:S3776",
+      "severity": "CRITICAL",
+      "component": "project_key:src/db/dao.py",
+      "project": "project_key",
+      "line": 45,
+      "message": "Refactor this function to reduce its Cognitive Complexity from 20 to the 15 allowed.",
+      "type": "CODE_SMELL"
+    },
+    {
+      "key": "AXx12346",
+      "rule": "java:S106",
+      "severity": "BLOCKER",
+      "component": "project_key:src/utils/legacy_parser.py",
+      "project": "project_key",
+      "line": 12,
+      "message": "Replace this usage of System.out or System.err by a logger.",
+      "type": "CODE_SMELL"
+    },
+    {
+      "key": "AXx12347",
+      "rule": "java:S00112",
+      "severity": "MAJOR",
+      "component": "project_key:src/api/routes/user.py",
+      "project": "project_key",
+      "line": 67,
+      "message": "Generic exceptions should never be thrown.",
+      "type": "CODE_SMELL"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+# Agentic alternative to ai-review.yml.
+#
+# ai-review.yml sends the diff to a model once and gets structured findings
+# back: cheap, predictable, works with any provider including a local one.
+#
+# This workflow runs Claude Code itself on the runner (official
+# anthropics/claude-code-action). It can open related files, run the test
+# suite and check its own claims before commenting. Slower and more
+# expensive per PR, better on large or subtle changes. It also answers
+# "@claude ..." mentions in PR and issue comments.
+#
+# Setup: install the Claude GitHub App on the repo (https://github.com/apps/claude)
+# and add ANTHROPIC_API_KEY as a secret. Copy to .github/workflows/claude.yml.
+name: Claude Code
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name != 'pull_request' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # On PR events run an automatic review; on comments, act on the request.
+          prompt: ${{ github.event_name == 'pull_request' && 'Review this pull request. Run the existing tests if there are any. Report only real problems (bugs, security, missing tests for risky logic) with file:line and a concrete fix. Follow CLAUDE.md if present. Write the review in Italian.' || '' }}

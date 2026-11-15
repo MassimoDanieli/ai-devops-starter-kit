@@ -1,0 +1,82 @@
+# Reusable workflow: propose tests for the code a PR changes.
+# Proposals are posted as a PR comment and uploaded as an artifact; nothing is
+# committed. Adopt the ones you like.
+name: AI test proposals (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      provider:
+        type: string
+        default: anthropic
+      model:
+        type: string
+        default: ""
+      base-url:
+        type: string
+        default: ""
+      language:
+        type: string
+        default: English
+      max-files:
+        type: number
+        default: 8
+      runs-on:
+        type: string
+        default: ubuntu-latest
+      kit-ref:
+        type: string
+        default: main
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      AI_API_KEY:
+        required: false
+
+jobs:
+  testgen:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install aikit
+        env:
+          KIT_REF: ${{ inputs.kit-ref }}
+        run: pip install --quiet "aikit[all] @ git+https://github.com/MassimoDanieli/ai-devops-starter-kit@${KIT_REF}"
+
+      - name: Propose tests
+        env:
+          AI_PROVIDER: ${{ inputs.provider }}
+          AI_MODEL: ${{ inputs.model }}
+          AI_BASE_URL: ${{ inputs.base-url }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: origin/${{ github.base_ref }}
+          OUT_LANGUAGE: ${{ inputs.language }}
+          MAX_FILES: ${{ inputs.max-files }}
+        run: aikit testgen --comment --language "$OUT_LANGUAGE" --max-files "$MAX_FILES" --write ai-tests --out ai-tests.md
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-test-proposals
+          path: |
+            ai-tests/
+            ai-tests.md
+          if-no-files-found: ignore
